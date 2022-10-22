@@ -2,7 +2,7 @@ import logo from './logo.svg';
 import './App.css';
 import sass from './sass/app.scss';
 import React, { Component } from "react";
-import { providers } from "ethers";
+import { Contract, providers, utils } from "ethers";
 
 class App extends Component {
 
@@ -10,9 +10,10 @@ class App extends Component {
 
   state = {
     blockNumber: null,
-    biggestTransaction: {
+    largestTransaction: {
       from: null,
       to: null,
+      amount: null,
     },
     provider: null,
     network: null,
@@ -29,7 +30,7 @@ class App extends Component {
       {"name": "Loopring", "symbol": "LRC", "address": "0xEF68e7C694F40c8202821eDF525dE3782458639f"},
       {"name": "Basic Attention Token", "symbol": "BAT", "address": "0x0D8775F648430679A709E98d2b0Cb6250d2887EF"},
     ],
-    selectedToken: null,
+    selectedTokenAddress: null,
   }
 
   render() {
@@ -57,11 +58,8 @@ class App extends Component {
 
     const getStuff = async() => {
       this.setState({loading: true});
-
       const provider = getProvider();
-
       const network = await provider.getNetwork();
-
       this.setState({network: network.name});
 
       let blockNumber = await provider.getBlockNumber();
@@ -69,12 +67,36 @@ class App extends Component {
 
       let block = await provider.getBlock(blockNumber);
 
-      block.transactions.map(async function(item, index) {
+      let _this = this;
+      let mapsValues = block.transactions.map(async function(item, index) {
         let tx = await provider.getTransaction(item);
-        console.log(tx);
+        let value = utils.formatEther(tx.value);
+
+        if(index === 0) {
+          _this.setState({largestTransaction: {from: 'ox', to: 'ox2', amount: value}});
+        } else if(value > _this.state.largestTransaction.amount) {
+          _this.setState({largestTransaction: {from: 'ox', to: 'ox2', amount: value}});
+        }
       });
 
       this.setState({loading: false});
+    }
+
+    const tokenChanged = (e) => {
+      this.setState({selectedTokenAddress: e.target.value});
+
+      let ALCHEMY_WEBSOCKET = '';
+
+      const provider = providers.WebSocketProvider(
+          `wss://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_WEBSOCKET}`
+      );
+
+      // const contract = Contract(this.state.selectedTokenAddress, '', provider);
+
+      // contract.on("Transfer", (from, to, value, event) => {
+      //
+      // })
+
     }
 
     return (
@@ -111,15 +133,14 @@ class App extends Component {
             <div className="card-body">
               <h6 className="card-subtitle mb-2">Current ETH Block </h6>
               <h4 className="card-title">{this.state.blockNumber}</h4>
-              <p className="card-text">Some quick example text to build on the card title and make up the bulk of the
-                card's content.</p>
+              <p className="card-text">Largest transaction of current block: {this.state.largestTransaction.amount ? parseFloat(this.state.largestTransaction.amount).toFixed(2) : null } ETH</p>
               <a href="#" className="card-link">Card link</a>
               <a href="#" className="card-link">Another link</a>
             </div>
           </div>
           <div className="form-group w-25 my-3 m-auto">
-            st: {this.state.selectedToken}
-            <select onChange={(e) => this.setState({selectedToken: e.target.value})} className="form-select btn btn-outline-primary" id="exampleSelect1">
+            st: {this.state.selectedTokenAddress}
+            <select onChange={tokenChanged} className="form-select btn btn-outline-primary" id="exampleSelect1">
               <option>Select ERC20 Token</option>
                 { this.state.erc20Tokens.map(token =>
                   <option key={token.address} value={token.address}>{token.name} {token.symbol}</option>
